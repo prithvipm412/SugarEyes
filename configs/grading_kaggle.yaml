@@ -1,0 +1,13 @@
+# Full-scale training on Kaggle's T4/P100 GPUs over the complete APTOS 2019
+# set (~3662 images), not the local 300-image dev sample. See AGENTS.md:
+# heavy grading-model training is Kaggle-only.
+manifest_csv: data/cache/manifest.csv
+image_size: 224
+batch_size: 32
+epochs: 60
+lr: 0.0001
+backbone: resnet34
+seed: 42
+patience: 10
+checkpoint_dir: models/grading
+log_dir: runs/grading

@@ -1,0 +1,5 @@
+{
+  "referable_threshold": 0.49,
+  "referable_threshold_val_sensitivity": 0.9473684210526315,
+  "referable_threshold_val_specificity": 0.9230769230769231
+}

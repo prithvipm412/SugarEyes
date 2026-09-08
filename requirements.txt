@@ -19,9 +19,15 @@ albumentations
 # Config / experiment tracking
 pyyaml
 tensorboard
+matplotlib
 
 # Dataset access
 kaggle
+
+# Deployment / export
+onnx
+onnxruntime
+onnxscript
 
 # Testing
 pytest

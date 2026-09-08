@@ -1,0 +1,10 @@
+manifest_csv: data/cache/manifest.csv
+image_size: 224
+batch_size: 16
+epochs: 30
+lr: 0.0001
+backbone: resnet34
+seed: 42
+patience: 10  # on this small local sample, val_qwk plateaus near 0 until ~epoch 10-15 before improving
+checkpoint_dir: models/grading
+log_dir: runs/grading
