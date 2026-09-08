@@ -1,0 +1,27 @@
+# Phase 1 -- data spine, preprocessing, image-quality module.
+# Later phases add to this file rather than replacing it (grad-cam, onnx,
+# simpy, fastapi, weasyprint, etc. are not needed yet).
+
+# Core numerics / CV
+numpy
+scipy
+pandas
+scikit-learn
+scikit-image
+opencv-python-headless
+
+# Deep learning
+torch
+torchvision
+timm
+albumentations
+
+# Config / experiment tracking
+pyyaml
+tensorboard
+
+# Dataset access
+kaggle
+
+# Testing
+pytest

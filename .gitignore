@@ -1,0 +1,41 @@
+# Data (raw/cache are large and re-derivable; splits are committed reproducibility artifacts)
+data/raw/
+data/cache/
+
+# Models: checkpoints and ONNX exports are gitignored, but the manifest is a committed artifact
+models/*
+!models/manifest.json
+!models/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# TensorBoard / training runs
+runs/
+lightning_logs/
+*.ckpt
+
+# Node / web
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Kaggle
+kaggle.json
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+.claude/
+
+# Logs
+*.log

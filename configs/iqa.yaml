@@ -1,0 +1,9 @@
+manifest_csv: data/cache/manifest.csv
+image_size: 224
+batch_size: 16
+epochs: 5
+lr: 0.0001
+backbone: resnet18
+seed: 42
+checkpoint_dir: models/iqa
+log_dir: runs/iqa
