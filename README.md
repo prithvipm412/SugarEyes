@@ -23,8 +23,15 @@ Built for Smart India Hackathon 2026, problem statement 26038.
 ## Status
 
 - [x] Phase 0 — repo scaffolding, `AGENTS.md`/`CLAUDE.md`, directory layout
-- [ ] Phase 1 — data spine, preprocessing, quality gate (in progress)
-- [ ] Phase 2 — grading backbone and the headline sensitivity/specificity metric
+- [x] Phase 1 — data spine, preprocessing, quality gate. Real gate pass on 300 APTOS
+      images: IQA validation accuracy 0.8370, latency 0.098s.
+- [x] Phase 2 (locally) — CORN ordinal grading model, real gate pass on the same
+      300-image sample: validation QWK 0.8036, threshold frozen at 0.49 (val
+      sensitivity 0.9474 / specificity 0.9231), ONNX parity 1.2e-5. **Not yet the
+      project's real result** — per `AGENTS.md`, heavy grading training is Kaggle-only
+      on the full ~3662-image set (`notebooks/kaggle_train_grading.ipynb`), and the
+      true headline sensitivity/specificity numbers need Messidor-2 (ADCIS
+      registration — not available in this environment as of writing).
 - [ ] Phase 3 — retinal structures and lesions
 - [ ] Phase 4 — explainability, calibration, fusion, reports
 - [ ] Phase 5 — screening simulation, API, and UI
