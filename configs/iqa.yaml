@@ -1,7 +1,7 @@
 manifest_csv: data/cache/manifest.csv
 image_size: 224
 batch_size: 16
-epochs: 5
+epochs: 20  # on a 300-image local sample, 5 epochs undertrains (val_acc ~0.72); converges by ~epoch 15-16
 lr: 0.0001
 backbone: resnet18
 seed: 42
