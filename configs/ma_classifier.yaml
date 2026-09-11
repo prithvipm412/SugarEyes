@@ -1,0 +1,7 @@
+raw_dir: data/raw/idrid/segmentation
+batch_size: 16
+epochs: 20
+lr: 0.001
+seed: 42
+checkpoint_dir: models/ma_classifier
+log_dir: runs/ma_classifier

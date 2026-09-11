@@ -1,0 +1,10 @@
+raw_dir: data/raw/idrid/segmentation
+patches_per_image: 50
+val_patches_per_image: 20
+batch_size: 4
+epochs: 40
+lr: 0.0001
+encoder: resnet34
+seed: 42
+checkpoint_dir: models/lesion_unet
+log_dir: runs/lesion_unet

@@ -1,0 +1,11 @@
+train_datasets: [drive, chasedb1]
+val_datasets: [stare]
+patches_per_image: 400
+val_patches_per_image: 150
+batch_size: 64
+epochs: 30
+lr: 0.001
+encoder: resnet18
+seed: 42
+checkpoint_dir: models/vessels
+log_dir: runs/vessels

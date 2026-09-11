@@ -15,6 +15,7 @@ torch
 torchvision
 timm
 albumentations
+segmentation-models-pytorch
 
 # Config / experiment tracking
 pyyaml
