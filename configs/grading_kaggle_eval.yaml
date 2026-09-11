@@ -1,0 +1,8 @@
+# For running select_threshold / check_parity / gate_phase2 locally against
+# the checkpoint actually trained on Kaggle (configs/grading_kaggle.yaml),
+# using its real held-out validation images (see scripts/cache_aptos_val.py).
+manifest_csv: data/cache/aptos_val_manifest.csv
+image_size: 224
+batch_size: 16
+backbone: resnet34
+checkpoint_dir: models/grading
