@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>DR Screening Report</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px;
+    font-family: -apple-system, "Inter", "Helvetica Neue", Arial, sans-serif;
+    color: #0F172A; background: #FFFFFF;
+    font-size: 11px;
+  }
+  .header { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #1B3A5F; padding-bottom: 8px; margin-bottom: 14px; }
+  .header h1 { font-size: 16px; margin: 0; color: #0A1628; }
+  .header .meta { font-size: 10px; color: #64748B; text-align: right; }
+  .grid { display: flex; gap: 16px; }
+  .col { flex: 1; }
+  .panel { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #475569; margin: 0 0 8px 0; }
+  .img-row { display: flex; gap: 8px; }
+  .img-row figure { margin: 0; flex: 1; }
+  .img-row img { width: 100%; border-radius: 6px; display: block; }
+  .img-row figcaption { font-size: 9px; color: #64748B; text-align: center; margin-top: 3px; }
+
+  .grade-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 64px; height: 64px; border-radius: 50%;
+    color: white; font-size: 28px; font-weight: 700;
+    font-family: "JetBrains Mono", monospace;
+  }
+  .grade-block { display: flex; align-items: center; gap: 14px; }
+  .grade-label { font-size: 14px; font-weight: 600; }
+  .grade-sub { font-size: 10px; color: #64748B; }
+
+  .confidence-bar-track { background: #E2E8F0; border-radius: 6px; height: 14px; overflow: hidden; }
+  .confidence-bar-fill { height: 100%; border-radius: 6px; }
+  .confidence-value { font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 700; }
+
+  .referral-banner {
+    padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 700;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .referral-yes { background: #FEE2E2; color: #991B1B; border: 1px solid #EF4444; }
+  .referral-no { background: #DCFCE7; color: #166534; border: 1px solid #10B981; }
+
+  table.lesion-table { width: 100%; border-collapse: collapse; font-size: 10px; }
+  table.lesion-table th, table.lesion-table td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #E2E8F0; }
+  table.lesion-table th { color: #64748B; font-weight: 600; }
+
+  .rule-based-tag { font-size: 9px; background: #F1F5F9; color: #475569; border-radius: 4px; padding: 1px 6px; margin-left: 6px; }
+
+  .footer { margin-top: 14px; padding-top: 8px; border-top: 1px solid #E2E8F0; font-size: 8.5px; color: #94A3B8; line-height: 1.5; }
+
+  .reject-box { padding: 24px; text-align: center; background: #FEF2F2; border: 1px solid #EF4444; border-radius: 8px; }
+  .reject-box h2 { color: #991B1B; font-size: 15px; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Diabetic Retinopathy Screening Report</h1>
+    <div class="meta">
+      Session: {{ session_id }}<br>
+      {{ timestamp }}
+    </div>
+  </div>
+
+  {% if quality_verdict == "REJECT" %}
+  <div class="reject-box">
+    <h2>Image Rejected -- Recapture Required</h2>
+    <p>Reason: <strong>{{ quality_reject_reason or "unspecified" }}</strong></p>
+    <p>This image did not pass the automated quality gate and was not graded. Please recapture
+       the fundus photograph and resubmit.</p>
+  </div>
+
+  {% else %}
+
+  <div class="grid">
+    <div class="col" style="flex: 1.3;">
+      <div class="panel">
+        <h2>Fundus Image &amp; Lesion Evidence</h2>
+        <div class="img-row">
+          <figure>
+            <img src="{{ original_image_uri }}" alt="original">
+            <figcaption>Original (preprocessed)</figcaption>
+          </figure>
+          <figure>
+            <img src="{{ lesion_overlay_uri }}" alt="lesion overlay">
+            <figcaption>Lesion overlay</figcaption>
+          </figure>
+          {% if gradcam_uri %}
+          <figure>
+            <img src="{{ gradcam_uri }}" alt="grad-cam">
+            <figcaption>Grad-CAM ({{ gradcam_native_size[0] }}&times;{{ gradcam_native_size[1] }} native grid)</figcaption>
+          </figure>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Lesion Counts</h2>
+        <table class="lesion-table">
+          <tr><th>Finding</th><th>Connected components</th></tr>
+          {% for row in lesion_rows %}
+          <tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>
+          {% endfor %}
+          {% if ma_candidate_count is not none %}
+          <tr><td>Microaneurysm candidates (stage-1, pre-classification)</td><td>{{ ma_candidate_count }}</td></tr>
+          {% endif %}
+        </table>
+        {% if neovascularisation %}
+        <p style="margin-top:8px;">
+          Neovascularisation flag:
+          <strong>{{ "POSITIVE" if neovascularisation.flag else "negative" }}</strong>
+          <span class="rule-based-tag">RULE-BASED, NOT LEARNED</span>
+        </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <h2>Severity Grade</h2>
+        <div class="grade-block">
+          <div class="grade-badge" style="background: {{ severity_color }};">{{ severity_grade }}</div>
+          <div>
+            <div class="grade-label">{{ severity_label }}</div>
+            <div class="grade-sub">ICDR scale, grade {{ severity_grade }} of 4</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Calibrated Confidence (Referable DR)</h2>
+        <div class="confidence-value">{{ confidence_pct }}%</div>
+        <div class="confidence-bar-track">
+          <div class="confidence-bar-fill" style="width: {{ confidence_pct }}%; background: {{ severity_color }};"></div>
+        </div>
+        {% if validation_sensitivity_ci and validation_specificity_ci %}
+        <p style="font-size:9px; color:#64748B; margin-top:6px;">
+          Model-level operating point (validation set): sensitivity
+          {{ (validation_sensitivity_ci[0]*100)|round(1) }}%
+          [{{ (validation_sensitivity_ci[1]*100)|round(1) }}, {{ (validation_sensitivity_ci[2]*100)|round(1) }}],
+          specificity {{ (validation_specificity_ci[0]*100)|round(1) }}%
+          [{{ (validation_specificity_ci[1]*100)|round(1) }}, {{ (validation_specificity_ci[2]*100)|round(1) }}].
+          This is model-level context, not a per-image confidence interval.
+        </p>
+        {% endif %}
+      </div>
+
+      <div class="panel" style="padding:0; overflow:hidden;">
+        <div class="referral-banner {{ 'referral-yes' if referable else 'referral-no' }}" style="border-radius:8px; margin:0;">
+          <span>{{ "REFER for ophthalmology follow-up" if referable else "No referral indicated" }}</span>
+          <span>{{ confidence_pct }}%</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="footer">
+    Model version: {{ model_version }} &middot; Quality verdict: {{ quality_verdict }}<br>
+    This is a screening aid intended to support, not replace, clinician judgement. All findings
+    require confirmation by a qualified ophthalmologist before any clinical decision is made.
+    Trained on APTOS 2019 (grading) and IDRiD/DRIVE/CHASE_DB1/STARE (lesions/vessels); evaluated
+    per SIH 2026 PS 26038. Grad-CAM operates at a coarse native resolution (see panel above) and
+    cannot reliably localise sub-pixel-scale lesions such as individual microaneurysms -- see the
+    pointing-game evidence for per-class agreement instead of assuming pixel-level accuracy.
+  </div>
+
+</body>
+</html>

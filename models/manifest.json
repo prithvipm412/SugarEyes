@@ -1,5 +1,9 @@
 {
   "referable_threshold": 0.395,
   "referable_threshold_val_sensitivity": 0.905829596412556,
-  "referable_threshold_val_specificity": 0.9480122324159022
+  "referable_threshold_val_specificity": 0.9480122324159022,
+  "calibration_temperature": 1.0960336391863081,
+  "calibration_ece_before": 0.038586483171781205,
+  "calibration_ece_after": 0.03736991514146452,
+  "calibration_n_images": 550
 }

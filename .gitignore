@@ -2,10 +2,14 @@
 data/raw/
 data/cache/
 
-# Models: checkpoints and ONNX exports are gitignored, but the manifest is a committed artifact
+# Models: checkpoints and ONNX exports are gitignored, but the manifest and
+# small evaluation plots (not checkpoints) are committed artifacts
 models/*
 !models/manifest.json
 !models/.gitkeep
+!models/calibration/
+models/calibration/*
+!models/calibration/*.png
 
 # Python
 __pycache__/
@@ -30,6 +34,9 @@ web/.vite/
 
 # Kaggle
 kaggle.json
+
+# Generated artifacts with embedded images (large; reproducible via their scripts)
+scripts/clinician_rating_form.html
 
 # OS / editors
 .DS_Store

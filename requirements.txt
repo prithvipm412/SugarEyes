@@ -30,5 +30,12 @@ onnx
 onnxruntime
 onnxscript
 
+# Explainability / reports
+grad-cam
+jinja2
+playwright  # PDF rendering via headless print -- WeasyPrint's pango/cairo
+            # deps don't load cleanly on this machine (see AGENTS.md); run
+            # `playwright install chromium` once after installing this.
+
 # Testing
 pytest
