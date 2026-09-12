@@ -60,7 +60,21 @@ Built for Smart India Hackathon 2026, problem statement 26038.
       + sweep), zero console errors. Docker + Hugging Face Spaces deployment
       config included (`Dockerfile`, `deploy/huggingface/`) — actually deploying
       needs the user's own HF account, so only the config and docs are provided.
-- [ ] Phase 6 — MATLAB compliance layer
+- [~] Phase 6 — MATLAB compliance layer. **Partial, honestly split** — see
+      `matlab/README.md` for the full breakdown. No MATLAB license was
+      obtainable in this environment, so this phase could not be run against
+      real MATLAB the way every other phase was run against real data. What
+      actually is verified: `matlab/preprocess.m` (the retina crop+resize
+      port) was run under GNU Octave — a free, MATLAB-syntax-compatible
+      interpreter — against 20 real APTOS images and compared pixel-for-pixel
+      against this project's own Python-cached output: mean abs diff
+      1.489/255, p99 9.0/255 (gated, PASS), max 143/255 (a real, explained,
+      thin-boundary-pixel effect from two different circle-fitting
+      algorithms, not a bug — see `matlab/README.md`). Everything needing
+      Deep Learning Toolbox or Simulink (`import_models.m`, `run_pipeline.m`,
+      `evaluate.m`, `build_screening_workflow.m`) has no Octave equivalent to
+      test against, so those are best-effort ports of the real Python logic,
+      written but **not yet executed** — flagged as such rather than claimed.
 
 ## Setup
 

@@ -32,6 +32,11 @@ web/node_modules/
 web/dist/
 web/.vite/
 
+# MATLAB: generated binary artifacts (built by build_screening_workflow.m /
+# import_models.m), not the scripts that produce them
+matlab/*.slx
+matlab/*.slx.autosave
+
 # Kaggle
 kaggle.json
 
