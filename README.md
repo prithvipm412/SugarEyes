@@ -38,7 +38,15 @@ Built for Smart India Hackathon 2026, problem statement 26038.
       (ma=0.410 he=0.603 ex=0.783 se=0.569, all reported), ONNX parity
       1.7e-5/2.1e-5. Unlike Phase 2, no dataset here needed registration —
       all four came from Kaggle mirrors.
-- [ ] Phase 4 — explainability, calibration, fusion, reports
+- [x] Phase 4 — explainability, calibration, fusion, reports. Real gate pass
+      against the real Kaggle-trained grading model + the real 550-image
+      validation set: Grad-CAM runs on the exported model (native grid 7x7),
+      pointing-game reported per class (ma=0.19 he=0.11 ex=0.30 se=0.08, none
+      skipped), ECE 0.0386→0.0374 after temperature scaling, PDF report in
+      1.24s. Ablation table: **fusion does not beat CNN-only** (0.975 vs
+      0.967/0.972 AUC) — reported as measured, exactly the risk AGENTS.md
+      flagged in advance, not hidden. New `pipeline.py` orchestrates Phases
+      1-4 end to end.
 - [ ] Phase 5 — screening simulation, API, and UI
 - [ ] Phase 6 — MATLAB compliance layer
 
