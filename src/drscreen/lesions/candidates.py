@@ -31,11 +31,53 @@ from ..device import get_device
 PATCH_SIZE = 48
 
 
-def extract_candidates(img: np.ndarray, vessel_mask: np.ndarray, min_area: int = 3, max_area: int = 60, min_circularity: float = 0.3) -> list[dict]:
+def _component_centroids(labeled: np.ndarray, n_labels: int, min_area: int = 0, max_area: int = 10**9, min_circularity: float = 0.0) -> list[dict]:
+    """Centroid + area for each labeled component, filtered by area and
+    bounding-box circularity. Uses `ndimage.find_objects` (one O(n_pixels)
+    pass, then O(n_labels) small-slice work) rather than looping
+    `np.where(labeled == label_id)` per label -- that pattern is
+    O(n_labels * n_pixels), which is fine for a handful of components but
+    catastrophic at real image scale: a full-resolution (4288x2848) IDRiD
+    image thresholded for MA candidates can easily produce 100k+ raw
+    components before filtering, turning a per-label full-array scan into
+    a multi-hour hang.
+    """
+    results = []
+    for label_id, sl in enumerate(ndimage.find_objects(labeled, max_label=n_labels), start=1):
+        if sl is None:
+            continue
+        region = labeled[sl] == label_id
+        area = int(region.sum())
+        if not (min_area <= area <= max_area):
+            continue
+        h, w = region.shape
+        if area / (h * w) < min_circularity:
+            continue
+        ys, xs = np.where(region)
+        results.append({"center": (sl[1].start + float(xs.mean()), sl[0].start + float(ys.mean())), "area": area})
+    return results
+
+
+def extract_candidates(img: np.ndarray, vessel_mask: np.ndarray, min_area: int = 3, max_area: int = 60, min_circularity: float = 0.3, percentile: float = 90.0) -> list[dict]:
     """Stage 1: morphological top-hat on the inverted green channel, vessels
     subtracted, thresholded and filtered by area + circularity.
 
-    Returns a list of {"center": (x, y), "area": int}, typically 50-500 per image.
+    At real fundus-camera resolution (thousands of pixels wide, e.g.
+    IDRiD's 4288x2848), the 90th percentile leaves 50k-100k+ raw components
+    before filtering -- far more than the "50-500 candidates" this stage
+    was designed around. A tighter percentile (tried: 99.9) cuts that down,
+    but measured against real IDRiD MA ground truth it also collapses
+    recall (~4-40% depending on how tight), because it screens out fainter
+    true microaneurysms along with the noise. Recall is what the gate
+    actually requires (>=0.85, measured at 90th percentile: ~0.93) and
+    what stage 2 depends on -- it can only ever reject a stage-1 candidate,
+    never recover one stage 1 missed. The candidate-count guidance is a
+    soft design target, not a hard constraint; `_component_centroids`'s
+    `find_objects`-based extraction stays fast (<1s/image) even at the
+    resulting 50k-90k raw components per image, so there's no performance
+    reason to trade recall away for a smaller candidate count.
+
+    Returns a list of {"center": (x, y), "area": int}.
     """
     green = img[:, :, 1]
     inverted = 255 - green
@@ -48,22 +90,12 @@ def extract_candidates(img: np.ndarray, vessel_mask: np.ndarray, min_area: int =
     positive = top_hat[top_hat > 0]
     if positive.size == 0:
         return []
-    threshold = max(np.percentile(positive, 90), 1)
+    threshold = max(np.percentile(positive, percentile), 1)
     binary = (top_hat >= threshold).astype(np.uint8)
 
     labeled, n_labels = ndimage.label(binary)
-    candidates = []
-    for label_id in range(1, n_labels + 1):
-        ys, xs = np.where(labeled == label_id)
-        area = len(xs)
-        if not (min_area <= area <= max_area):
-            continue
-        bbox_w, bbox_h = xs.max() - xs.min() + 1, ys.max() - ys.min() + 1
-        circularity = area / (bbox_w * bbox_h)
-        if circularity < min_circularity:
-            continue
-        candidates.append({"center": (int(round(xs.mean())), int(round(ys.mean()))), "area": area})
-    return candidates
+    components = _component_centroids(labeled, n_labels, min_area, max_area, min_circularity)
+    return [{"center": (int(round(c["center"][0])), int(round(c["center"][1]))), "area": c["area"]} for c in components]
 
 
 def candidate_stage_recall(img: np.ndarray, vessel_mask: np.ndarray, true_mask: np.ndarray, tolerance: int = 10) -> float:
@@ -73,10 +105,7 @@ def candidate_stage_recall(img: np.ndarray, vessel_mask: np.ndarray, true_mask: 
     labeled, n_labels = ndimage.label(true_mask.astype(bool))
     if n_labels == 0:
         return float("nan")
-    true_centers = []
-    for label_id in range(1, n_labels + 1):
-        ys, xs = np.where(labeled == label_id)
-        true_centers.append((float(xs.mean()), float(ys.mean())))
+    true_centers = [c["center"] for c in _component_centroids(labeled, n_labels)]
 
     candidate_centers = [c["center"] for c in extract_candidates(img, vessel_mask)]
     if not candidate_centers:
@@ -163,12 +192,17 @@ class MAPatchDataset(Dataset):
     def __len__(self) -> int:
         return len(self.samples)
 
-    def __getitem__(self, idx: int) -> tuple[torch.Tensor, float]:
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor]:
         image_id, center, label = self.samples[idx]
         patch = extract_patch(self._images[image_id], center, PATCH_SIZE)
         tensor = torch.from_numpy(patch).permute(2, 0, 1).float() / 255.0
         tensor = (tensor - 0.5) / 0.5
-        return tensor, float(label)
+        # A plain Python float here collates to a float64 tensor (PyTorch's
+        # default_collate mirrors Python/numpy's float-to-double default),
+        # and MPS rejects float64 outright -- even transiently, before any
+        # later .float() downcast gets a chance to run. Returning float32
+        # directly avoids depending on collation's default dtype.
+        return tensor, torch.tensor(label, dtype=torch.float32)
 
 
 def set_seed(seed: int) -> None:
@@ -184,7 +218,7 @@ def run_epoch(model, loader, device, optimizer=None) -> tuple[float, float]:
     context = torch.enable_grad() if train_mode else torch.no_grad()
     with context:
         for images, labels in loader:
-            images, labels = images.to(device), labels.to(device).float()
+            images, labels = images.to(device), labels.float().to(device)
             logits = model(images)
             loss = torch.nn.functional.binary_cross_entropy_with_logits(logits, labels)
             if train_mode:
@@ -222,13 +256,24 @@ def main() -> None:
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(log_dir=str(Path(config.get("log_dir", "runs/ma_classifier"))))
 
-    best_acc = -1.0
-    for epoch in range(1, epochs + 1):
+    start_epoch, best_acc = 1, -1.0
+    checkpoints = sorted(ckpt_dir.glob("epoch_*.pt"), key=lambda p: int(p.stem.split("_")[1]))
+    if checkpoints:
+        checkpoint = torch.load(checkpoints[-1], map_location=device)
+        model.load_state_dict(checkpoint["model_state"])
+        optimizer.load_state_dict(checkpoint["optimizer_state"])
+        start_epoch = checkpoint["epoch"] + 1
+        print(f"resumed from {checkpoints[-1]} at epoch {start_epoch}", flush=True)
+        best_path = ckpt_dir / "best.pt"
+        if best_path.exists():
+            best_acc = torch.load(best_path, map_location=device)["val_acc"]
+
+    for epoch in range(start_epoch, epochs + 1):
         train_loss, train_acc = run_epoch(model, train_loader, device, optimizer)
         val_loss, val_acc = run_epoch(model, val_loader, device)
         writer.add_scalars("loss", {"train": train_loss, "val": val_loss}, epoch)
         writer.add_scalars("acc", {"train": train_acc, "val": val_acc}, epoch)
-        print(f"epoch {epoch}/{epochs}  train_loss={train_loss:.4f} train_acc={train_acc:.4f}  val_loss={val_loss:.4f} val_acc={val_acc:.4f}")
+        print(f"epoch {epoch}/{epochs}  train_loss={train_loss:.4f} train_acc={train_acc:.4f}  val_loss={val_loss:.4f} val_acc={val_acc:.4f}", flush=True)
 
         torch.save({"epoch": epoch, "model_state": model.state_dict(), "optimizer_state": optimizer.state_dict(), "val_acc": val_acc}, ckpt_dir / f"epoch_{epoch}.pt")
         if val_acc > best_acc:

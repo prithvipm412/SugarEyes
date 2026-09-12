@@ -152,7 +152,10 @@ def check_onnx_parity() -> None:
         ]:
             onnx_path = str(Path(tmp) / f"{name}.onnx")
             dummy = torch.randn(1, channels, size, size)
-            torch.onnx.export(model, dummy, onnx_path, input_names=["image"], output_names=["logits"], opset_version=13, dynamo=False)
+            torch.onnx.export(
+                model, dummy, onnx_path, input_names=["image"], output_names=["logits"],
+                dynamic_axes={"image": {0: "batch"}, "logits": {0: "batch"}}, opset_version=13, dynamo=False,
+            )
             session = ort.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
 
             test_input = torch.randn(3, channels, size, size)

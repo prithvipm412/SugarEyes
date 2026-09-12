@@ -15,13 +15,48 @@ import numpy as np
 from scipy import ndimage
 
 
-def _bright_blob_mask(gray: np.ndarray, min_area: int = 20, max_area_frac: float = 0.15) -> np.ndarray:
+def _blob_candidates(labeled: np.ndarray, n_labels: int, min_area: float, max_area: float) -> list[dict]:
+    """Centroid/area/bbox for each labeled blob, filtered by area, via
+    `ndimage.find_objects` -- an O(n_labels) pass rather than looping
+    `np.where(labeled == label_id)` per label, which is O(n_labels *
+    n_pixels) and can be pathologically slow on a real fundus photo with
+    many bright regions (hard exudates in particular can rival the disc in
+    brightness and count)."""
+    results = []
+    for label_id, sl in enumerate(ndimage.find_objects(labeled, max_label=n_labels), start=1):
+        if sl is None:
+            continue
+        region = labeled[sl] == label_id
+        area = int(region.sum())
+        if not (min_area <= area <= max_area):
+            continue
+        ys, xs = np.where(region)
+        h, w = region.shape
+        results.append(
+            {
+                "center": (sl[1].start + float(xs.mean()), sl[0].start + float(ys.mean())),
+                "area": area,
+                "bbox": (w, h),
+            }
+        )
+    return results
+
+
+def _bright_blob_mask(gray: np.ndarray, min_area_frac: float = 0.003, max_area_frac: float = 0.15) -> np.ndarray:
     """Threshold `gray` to isolate bright blobs, searching progressively
     looser percentiles until at least one blob of plausible disc size
     appears. A single fixed percentile (e.g. 98th) is fragile: a real optic
     disc typically covers ~2% of a well-cropped frame, so a fixed threshold
-    can land exactly on the background level and select the whole image."""
+    can land exactly on the background level and select the whole image.
+
+    Area bounds are relative to image size (not a fixed pixel count): a
+    fixed absolute min_area tuned for a small test image accepts tiny noise
+    specks or lesion fragments as "the disc" on a real, larger photo, well
+    before the threshold ever loosens enough to capture the actually
+    disc-sized blob.
+    """
     total_pixels = gray.size
+    min_area, max_area = min_area_frac * total_pixels, max_area_frac * total_pixels
     for percentile in (99.9, 99.7, 99.5, 99.0, 98.0, 95.0, 90.0):
         threshold = np.percentile(gray, percentile)
         bright_mask = gray >= max(threshold, 1)
@@ -30,19 +65,26 @@ def _bright_blob_mask(gray: np.ndarray, min_area: int = 20, max_area_frac: float
             continue
         sizes = ndimage.sum(bright_mask, labeled, range(1, n_labels + 1))
         sizes = np.asarray(sizes)
-        if ((sizes >= min_area) & (sizes <= max_area_frac * total_pixels)).any():
+        if ((sizes >= min_area) & (sizes <= max_area)).any():
             return bright_mask
     # Last resort: the loosest threshold, whatever it gives.
     threshold = np.percentile(gray, 90)
     return gray >= max(threshold, 1)
 
 
-def locate_optic_disc(img: np.ndarray, vessel_map: np.ndarray) -> dict:
+def locate_optic_disc(img: np.ndarray, vessel_map: np.ndarray, min_radius_frac: float = 0.035) -> dict:
     """Locate the optic disc.
 
     Args:
         img: RGB uint8 fundus image, shape (H, W, 3).
         vessel_map: boolean/0-1 vessel segmentation, shape (H, W).
+        min_radius_frac: anatomical floor on the reported radius, as a
+            fraction of the image's larger dimension (~3-4% is typical for
+            a well-cropped fundus photo). A percentile-threshold blob only
+            ever captures the disc's brightest *core*, not its full extent
+            -- reporting that smaller area's radius directly systematically
+            undersizes the disc, which then fails a "within 1 radius"
+            tolerance check even when the *center* was found correctly.
 
     Returns:
         {"center": (x, y), "radius": int, "confidence": float in [0, 1]}
@@ -50,21 +92,18 @@ def locate_optic_disc(img: np.ndarray, vessel_map: np.ndarray) -> dict:
     gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
     h, w = gray.shape
     vessel_map = vessel_map.astype(bool)
+    min_radius = min_radius_frac * max(h, w)
 
     bright_mask = _bright_blob_mask(gray)
     labeled, n_labels = ndimage.label(bright_mask)
-    max_area = 0.15 * gray.size
+    min_area, max_area = 0.003 * gray.size, 0.15 * gray.size
 
     best_score, best = -np.inf, None
-    for label_id in range(1, n_labels + 1):
-        ys, xs = np.where(labeled == label_id)
-        area = len(xs)
-        if area < 10 or area > max_area:
-            continue
-        cx, cy = float(xs.mean()), float(ys.mean())
-        radius = float(np.sqrt(area / np.pi))
-
-        bbox_w, bbox_h = xs.max() - xs.min() + 1, ys.max() - ys.min() + 1
+    for candidate in _blob_candidates(labeled, n_labels, min_area, max_area):
+        cx, cy = candidate["center"]
+        area = candidate["area"]
+        bbox_w, bbox_h = candidate["bbox"]
+        radius = max(float(np.sqrt(area / np.pi)), min_radius)
         circularity = area / (bbox_w * bbox_h)
 
         neighborhood_radius = max(radius * 2, 10)
@@ -72,7 +111,8 @@ def locate_optic_disc(img: np.ndarray, vessel_map: np.ndarray) -> dict:
         neighborhood = (xx - cx) ** 2 + (yy - cy) ** 2 <= neighborhood_radius**2
         vessel_density = vessel_map[neighborhood].mean() if neighborhood.any() else 0.0
 
-        brightness = gray[ys, xs].mean() / 255.0
+        gray_region = gray[max(0, int(cy - radius)) : int(cy + radius), max(0, int(cx - radius)) : int(cx + radius)]
+        brightness = (gray_region.mean() / 255.0) if gray_region.size > 0 else 0.0
         score = 0.4 * brightness + 0.3 * circularity + 0.3 * vessel_density
         if score > best_score:
             best_score = score

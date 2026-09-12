@@ -1,8 +1,8 @@
 raw_dir: data/raw/idrid/segmentation
-patches_per_image: 50
-val_patches_per_image: 20
-batch_size: 4
-epochs: 40
+patches_per_image: 25  # tuned down from 50 -- 384px patches through resnet34 are slow on MPS (~15 min/epoch); this + batch_size 8 gets ~4 min/epoch
+val_patches_per_image: 15
+batch_size: 8
+epochs: 15
 lr: 0.0001
 encoder: resnet34
 seed: 42

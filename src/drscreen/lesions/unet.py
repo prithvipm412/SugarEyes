@@ -187,8 +187,19 @@ def main() -> None:
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     writer = SummaryWriter(log_dir=str(Path(config.get("log_dir", "runs/lesion_unet"))))
 
-    best_mean_dice, val_dice = -1.0, np.zeros(len(LESION_CLASSES))
-    for epoch in range(1, epochs + 1):
+    start_epoch, best_mean_dice, val_dice = 1, -1.0, np.zeros(len(LESION_CLASSES))
+    checkpoints = sorted(ckpt_dir.glob("epoch_*.pt"), key=lambda p: int(p.stem.split("_")[1]))
+    if checkpoints:
+        checkpoint = torch.load(checkpoints[-1], map_location=device)
+        model.load_state_dict(checkpoint["model_state"])
+        optimizer.load_state_dict(checkpoint["optimizer_state"])
+        start_epoch = checkpoint["epoch"] + 1
+        print(f"resumed from {checkpoints[-1]} at epoch {start_epoch}", flush=True)
+        best_path = ckpt_dir / "best.pt"
+        if best_path.exists():
+            best_mean_dice = float(np.mean(torch.load(best_path, map_location=device)["val_dice"]))
+
+    for epoch in range(start_epoch, epochs + 1):
         train_loss, train_dice = run_epoch(model, train_loader, device, optimizer)
         val_loss, val_dice = run_epoch(model, val_loader, device)
         writer.add_scalars("loss", {"train": train_loss, "val": val_loss}, epoch)
@@ -196,7 +207,7 @@ def main() -> None:
             writer.add_scalars(f"dice_{cls}", {"train": train_dice[i], "val": val_dice[i]}, epoch)
 
         dice_str = "  ".join(f"{c}={val_dice[i]:.3f}" for i, c in enumerate(LESION_CLASSES))
-        print(f"epoch {epoch}/{epochs}  train_loss={train_loss:.4f}  val_loss={val_loss:.4f}  val_dice[{dice_str}]")
+        print(f"epoch {epoch}/{epochs}  train_loss={train_loss:.4f}  val_loss={val_loss:.4f}  val_dice[{dice_str}]", flush=True)
 
         mean_dice = float(val_dice.mean())
         torch.save({"epoch": epoch, "model_state": model.state_dict(), "optimizer_state": optimizer.state_dict(), "val_dice": val_dice.tolist(), "encoder": encoder}, ckpt_dir / f"epoch_{epoch}.pt")
@@ -205,7 +216,12 @@ def main() -> None:
             torch.save({"epoch": epoch, "model_state": model.state_dict(), "val_dice": val_dice.tolist(), "encoder": encoder}, ckpt_dir / "best.pt")
 
     writer.close()
-    print(f"best mean val_dice={best_mean_dice:.4f}  per-class={dict(zip(LESION_CLASSES, val_dice.tolist()))}")
+    # Re-load best.pt rather than reusing the loop's last `val_dice` --
+    # that's whichever epoch the loop happened to end on, not necessarily
+    # the epoch that achieved best_mean_dice, so pairing them here would
+    # print a mean and a per-class breakdown from two different epochs.
+    best_checkpoint = torch.load(ckpt_dir / "best.pt", map_location="cpu")
+    print(f"best mean val_dice={best_mean_dice:.4f}  per-class={dict(zip(LESION_CLASSES, best_checkpoint['val_dice']))}")
 
 
 if __name__ == "__main__":
