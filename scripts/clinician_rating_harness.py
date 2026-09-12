@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 
 from src.drscreen.pipeline import ScreeningPipeline
-from src.drscreen.report.build import SEVERITY_LABELS, _overlay_lesions
+from src.drscreen.report.build import SEVERITY_LABELS, overlay_lesions
 
 N_CASES = 30
 MANIFEST = Path("data/cache/aptos_val_manifest.csv")
@@ -44,7 +44,7 @@ def build_cases(n: int, seed: int = 42) -> list[dict]:
             {
                 "case_id": f"case_{display_idx + 1:03d}",
                 "original_uri": _encode(result.preprocessed_image),
-                "lesion_overlay_uri": _encode(_overlay_lesions(result.preprocessed_image, result.lesion_masks)),
+                "lesion_overlay_uri": _encode(overlay_lesions(result.preprocessed_image, result.lesion_masks)),
                 "gradcam_uri": _encode(result.gradcam_overlay) if result.gradcam_overlay is not None else None,
                 "severity_grade": result.severity_grade,
                 "severity_label": SEVERITY_LABELS.get(result.severity_grade),

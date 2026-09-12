@@ -31,7 +31,7 @@ def _encode_image(img: np.ndarray) -> str:
     return "data:image/png;base64," + base64.b64encode(buffer).decode("ascii")
 
 
-def _overlay_lesions(img: np.ndarray, lesion_masks: dict) -> np.ndarray:
+def overlay_lesions(img: np.ndarray, lesion_masks: dict) -> np.ndarray:
     overlay = img.copy()
     for cls, mask in lesion_masks.items():
         if not mask.any():
@@ -54,7 +54,7 @@ def render_report_html(
     lesion_overlay_uri = None
     gradcam_uri = None
     if result.quality_verdict != "REJECT":
-        lesion_overlay_uri = _encode_image(_overlay_lesions(result.preprocessed_image, result.lesion_masks))
+        lesion_overlay_uri = _encode_image(overlay_lesions(result.preprocessed_image, result.lesion_masks))
         if result.gradcam_overlay is not None:
             gradcam_uri = _encode_image(result.gradcam_overlay)
 
