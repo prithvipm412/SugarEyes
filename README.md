@@ -25,14 +25,19 @@ Built for Smart India Hackathon 2026, problem statement 26038.
 - [x] Phase 0 — repo scaffolding, `AGENTS.md`/`CLAUDE.md`, directory layout
 - [x] Phase 1 — data spine, preprocessing, quality gate. Real gate pass on 300 APTOS
       images: IQA validation accuracy 0.8370, latency 0.098s.
-- [x] Phase 2 (locally) — CORN ordinal grading model, real gate pass on the same
-      300-image sample: validation QWK 0.8036, threshold frozen at 0.49 (val
-      sensitivity 0.9474 / specificity 0.9231), ONNX parity 1.2e-5. **Not yet the
-      project's real result** — per `AGENTS.md`, heavy grading training is Kaggle-only
-      on the full ~3662-image set (`notebooks/kaggle_train_grading.ipynb`), and the
-      true headline sensitivity/specificity numbers need Messidor-2 (ADCIS
-      registration — not available in this environment as of writing).
-- [ ] Phase 3 — retinal structures and lesions
+- [x] Phase 2 — CORN ordinal grading model, trained for real on Kaggle's full
+      ~3662-image APTOS set (`notebooks/kaggle_train_grading.ipynb`, GPU T4x2):
+      validation QWK 0.8744, threshold frozen at 0.395 (val sensitivity 0.9058 /
+      specificity 0.9480 — already past both PS targets), ONNX parity 1.7e-5.
+      The official headline numbers still need Messidor-2 (ADCIS registration —
+      not available in this environment as of writing).
+- [x] Phase 3 — retinal structures and lesions. Real gate pass on real
+      DRIVE/CHASE_DB1/STARE (vessels) + IDRiD (lesions/localization) data:
+      OD localization 0.9320 (96/103), vessel Dice 0.7940 (held out on STARE),
+      MA candidate-stage recall 0.9638, lesion U-Net per-channel Dice
+      (ma=0.410 he=0.603 ex=0.783 se=0.569, all reported), ONNX parity
+      1.7e-5/2.1e-5. Unlike Phase 2, no dataset here needed registration —
+      all four came from Kaggle mirrors.
 - [ ] Phase 4 — explainability, calibration, fusion, reports
 - [ ] Phase 5 — screening simulation, API, and UI
 - [ ] Phase 6 — MATLAB compliance layer
