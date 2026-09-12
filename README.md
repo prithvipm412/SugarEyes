@@ -10,6 +10,13 @@ district screening programme.
 
 Built for Smart India Hackathon 2026, problem statement 26038.
 
+> **Not a certified medical device.** This is a hackathon research prototype. It
+> has not been through regulatory clearance (e.g. CDSCO, FDA) or prospective
+> clinical validation, and the "field conditions" it's tested under are a
+> synthetic degradation simulator, not a real camera in a real clinic — see
+> the known-risks table below. It is not intended for, and must not be used
+> for, real patient diagnosis or treatment decisions.
+
 ## Project context
 
 - **`AGENTS.md`** / **`CLAUDE.md`** (identical) — persistent project context: hard
@@ -28,9 +35,10 @@ Built for Smart India Hackathon 2026, problem statement 26038.
 - [x] Phase 2 — CORN ordinal grading model, trained for real on Kaggle's full
       ~3662-image APTOS set (`notebooks/kaggle_train_grading.ipynb`, GPU T4x2):
       validation QWK 0.8744, threshold frozen at 0.395 (val sensitivity 0.9058 /
-      specificity 0.9480 — already past both PS targets), ONNX parity 1.7e-5.
-      The official headline numbers still need Messidor-2 (ADCIS registration —
-      not available in this environment as of writing).
+      specificity 0.9480 — already past both PS targets on APTOS's own held-out
+      split), ONNX parity 1.7e-5. **The official Messidor-2 test-set result
+      (see below) does not meet the sensitivity target** — reported honestly,
+      not hidden, per AGENTS.md's core rule.
 - [x] Phase 3 — retinal structures and lesions. Real gate pass on real
       DRIVE/CHASE_DB1/STARE (vessels) + IDRiD (lesions/localization) data:
       OD localization 0.9320 (96/103), vessel Dice 0.7940 (held out on STARE),
@@ -75,6 +83,47 @@ Built for Smart India Hackathon 2026, problem statement 26038.
       `evaluate.m`, `build_screening_workflow.m`) has no Octave equivalent to
       test against, so those are best-effort ports of the real Python logic,
       written but **not yet executed** — flagged as such rather than claimed.
+
+## Messidor-2 test-set result (the actual PS headline number)
+
+Run exactly once (`scripts/evaluate.py`; see `models/evaluate_run_log.json`),
+on 1744 real, gradable Messidor-2 images (Google Brain's adjudicated grades —
+see `data/splits/README.md` for the full label provenance), using the
+threshold frozen from APTOS validation alone (0.395), never adjusted after
+seeing this result:
+
+| Metric | Result | 95% CI | PS target | Met? |
+|---|---|---|---|---|
+| Sensitivity | **0.2757** | [0.2355, 0.3140] | ≥ 0.90 | **No** |
+| Specificity | 0.9736 | [0.9647, 0.9818] | ≥ 0.85 | Yes |
+| AUC (DeLong) | 0.7544 | [0.7278, 0.7810] | — | — |
+| QWK (5-class) | 0.3666 | — | — | — |
+
+**This is a real, severe finding, not a bug: the sensitivity target is not
+met on the actual mandated test set.** This is exactly the APTOS→Messidor-2
+domain-shift risk AGENTS.md's risk table flagged as a required consideration
+in advance ("expect and report a performance drop"), materializing more
+severely than a mild drop. A read-only diagnostic (not used to pick a new
+threshold — the frozen one above is the one, real, reported result) shows
+why: on APTOS validation, referable cases score a median 0.958 (well above
+the 0.395 threshold); on Messidor-2, referable cases score a median of only
+0.053 — a systematic downward shift in the model's raw output scale between
+the two datasets' images (almost certainly different camera/site
+characteristics), not a loss of all signal — the AUC of 0.75 (vs ~0.97 on
+APTOS validation) shows the model still ranks referable cases higher than
+non-referable ones on average, just not at a magnitude the APTOS-derived
+threshold can use.
+
+**What this means honestly:** as built, this model is not ready to deploy
+against Messidor-2-like images at the frozen threshold — a real clinical
+deployment would need per-site recalibration (e.g. re-running Phase 4's
+temperature scaling and threshold selection against a validation set drawn
+from the deployment site's own camera/population) before trusting its
+referable-DR calls, and this project has not done that recalibration or
+validated it against a second independent test set. The specificity number
+and the still-positive AUC are genuine, not spin, but they don't substitute
+for the missed sensitivity target on the metric the problem statement
+actually asks for.
 
 ## Setup
 

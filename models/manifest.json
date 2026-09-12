@@ -5,5 +5,16 @@
   "calibration_temperature": 1.0960336391863081,
   "calibration_ece_before": 0.038586483171781205,
   "calibration_ece_after": 0.03736991514146452,
-  "calibration_n_images": 550
+  "calibration_n_images": 550,
+  "messidor2_test_timestamp": "2026-09-12T17:34:41.929539+00:00",
+  "messidor2_test_n_images": 1744,
+  "messidor2_test_threshold_used": 0.395,
+  "messidor2_test_sensitivity": 0.27571115973741794,
+  "messidor2_test_sensitivity_ci": [0.23552307150405075, 0.3139541135283821],
+  "messidor2_test_specificity": 0.9735819735819736,
+  "messidor2_test_specificity_ci": [0.9647239263803681, 0.981819614585572],
+  "messidor2_test_auc": 0.7544405509394568,
+  "messidor2_test_auc_ci": [0.7278363454110137, 0.7810447564679],
+  "messidor2_test_qwk": 0.3666176630866006,
+  "messidor2_test_note": "Sensitivity target (>=0.90) NOT met on this held-out test set, despite meeting it on APTOS validation (see referable_threshold_val_sensitivity above). Specificity target (>=0.85) is met. This is the APTOS->Messidor-2 domain-shift risk AGENTS.md flagged in advance -- see README.md and data/splits/README.md."
 }

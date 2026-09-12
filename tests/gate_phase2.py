@@ -49,14 +49,31 @@ def check_validation_qwk() -> None:
 
 
 def check_threshold_frozen_and_test_untouched() -> None:
+    """Before Messidor-2 was obtained, this asserted RUN_LOG_PATH did not
+    exist at all -- a development-time tripwire against reading the test
+    split prematurely. Now that scripts/evaluate.py has legitimately been
+    run once (see README.md's Messidor-2 result section), that assertion is
+    stale: it would fail forever after a correct, one-time evaluation. The
+    real invariant this gate protects -- the threshold was frozen before the
+    test split was ever read, and the test split is touched at most once --
+    is checked directly instead."""
     assert MANIFEST_PATH.exists(), f"{MANIFEST_PATH} missing -- run scripts/select_threshold.py first"
     manifest = json.loads(MANIFEST_PATH.read_text())
     assert "referable_threshold" in manifest, f"{MANIFEST_PATH} has no frozen referable_threshold"
-    assert not RUN_LOG_PATH.exists(), (
-        f"{RUN_LOG_PATH} exists -- the test split has already been evaluated; "
-        "the threshold must be frozen BEFORE the test split is ever read."
-    )
-    print(f"[ok] threshold frozen at {manifest['referable_threshold']:.4f}, test split untouched")
+
+    if RUN_LOG_PATH.exists():
+        log = json.loads(RUN_LOG_PATH.read_text())
+        assert len(log) <= 1, (
+            f"{RUN_LOG_PATH} has {len(log)} entries -- the test split must be touched exactly "
+            "once. A second entry means it was evaluated again, which this project's rules forbid."
+        )
+        assert log[0]["threshold"] == manifest["referable_threshold"], (
+            "the threshold used in the one evaluation run does not match the currently frozen "
+            "threshold in manifest.json -- the threshold must not change after the test split is read."
+        )
+        print(f"[ok] threshold frozen at {manifest['referable_threshold']:.4f}, test split evaluated exactly once")
+    else:
+        print(f"[ok] threshold frozen at {manifest['referable_threshold']:.4f}, test split untouched")
 
 
 def check_onnx_parity() -> None:
