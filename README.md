@@ -47,7 +47,19 @@ Built for Smart India Hackathon 2026, problem statement 26038.
       0.967/0.972 AUC) — reported as measured, exactly the risk AGENTS.md
       flagged in advance, not hidden. New `pipeline.py` orchestrates Phases
       1-4 end to end.
-- [ ] Phase 5 — screening simulation, API, and UI
+- [x] Phase 5 — screening simulation, API, and UI. Real gate pass: 1000-patient
+      SimPy simulation in 0.017s with exact queue conservation (in=out), FastAPI
+      `/screen` round-trip on a real image in 0.18-0.87s, frontend (Vite + React +
+      TypeScript + Tailwind + shadcn/ui) builds clean with zero TypeScript errors.
+      The auto-clear-threshold trade-off — the centrepiece chart for the slides —
+      is driven by real (grade, calibrated confidence) pairs resampled from Phase
+      4's actual validation-set output, not a synthetic error assumption
+      (`results/simulation/threshold_tradeoff.{csv,html}`). Full backend+frontend
+      verified end-to-end with a real running server and headless-browser
+      interaction (upload → grade/reject, Grad-CAM tabs, simulation dashboard run
+      + sweep), zero console errors. Docker + Hugging Face Spaces deployment
+      config included (`Dockerfile`, `deploy/huggingface/`) — actually deploying
+      needs the user's own HF account, so only the config and docs are provided.
 - [ ] Phase 6 — MATLAB compliance layer
 
 ## Setup
